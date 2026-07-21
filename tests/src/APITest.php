@@ -68,6 +68,35 @@ class APITest extends BaseTestCase
         $this->assertFalse($testCreateFolder);
     }
 
+    public function testUpdateFolders()
+    {
+        $client = $this->getClient();
+
+        $parentFolder = $client->getFolderByDistinguishedId('inbox');
+        $client->createFolders('Test Update Folder', $parentFolder->getFolderId());
+        $folder = $client->getFolderByDisplayName('Test Update Folder', $parentFolder->getFolderId());
+        $this->assertNotFalse($folder);
+
+        $client->updateFolders([
+            'FolderChange' => [
+                'FolderId' => $folder->getFolderId()->toArray(),
+                'Updates'  => [
+                    'SetFolderField' => [
+                        'FieldURI' => ['FieldURI' => 'folder:DisplayName'],
+                        'Folder'   => ['DisplayName' => 'Test Update Folder Renamed'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertFalse($client->getFolderByDisplayName('Test Update Folder', $parentFolder->getFolderId()));
+        $renamed = $client->getFolderByDisplayName('Test Update Folder Renamed', $parentFolder->getFolderId());
+        $this->assertNotFalse($renamed);
+        $this->assertEquals('Test Update Folder Renamed', $renamed->getDisplayName());
+
+        $client->deleteFolders($renamed->getFolderId());
+    }
+
     public function testGetFolderByDistinguishedId()
     {
         $client = $this->getClient();

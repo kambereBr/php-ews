@@ -6,6 +6,7 @@ use garethp\ews\API\ExchangeWebServices;
 use garethp\ews\API\Message\EmptyFolderResponseType;
 use garethp\ews\API\Message\GetServerTimeZonesType;
 use garethp\ews\API\Message\SyncFolderItemsResponseMessageType;
+use garethp\ews\API\Message\FolderInfoResponseMessageType;
 use garethp\ews\API\Message\UpdateItemResponseMessageType;
 use garethp\ews\API\Type;
 use garethp\ews\API\Type\BaseFolderIdType;
@@ -307,55 +308,32 @@ class API
         return $response;
     }
 
-    
+
     /**
-     * Apply a set of field changes to a folder.
+     * Update one or more folders.
      *
-     * $foldersFields are the contents of the <Updates> element, e.g.
-     *       [
-     *          'FieldURI' => ['FieldURI' => 'folder:DisplayName'],
-     *          'Folder' =>['DisplayName' => 'New Folder Name'],
-     *       ];
-     *
-     * @param BaseFolderIdType $folderId
-     * @param array $foldersFields
+     * @param array $folders
      * @param array $options
-     * @return Type\BaseFolderType[]|Type
+     * @return Type\ArrayOfFoldersType|array
      */
-    public function updateFolder(BaseFolderIdType $folderId, $foldersFields, $options = [])
+    public function updateFolders($folders, $options = array())
     {
-        $folderChange = $folderId->toArray(true);
-        $folderChange['Updates'] =['SetFolderField' => $foldersFields];
-        $request = [
-            'FolderChanges' => [
-                'FolderChange' => $folderChange
-            ]
-        ];
+        $request = array(
+            'FolderChanges' => $folders
+        );
 
         $request = array_replace_recursive($request, $options);
-
         $request = Type::buildFromArray($request);
 
-        try {
-            $response = $this->getClient()->UpdateFolder($request);
-        } catch (API\Exception $e) {
-            // Exchange renames the folder but returns ErrorInternalServerError
-            // ("Value cannot be null. (Parameter 'participantResolver')") on
-            // cold/app-only mailboxes. The write succeeds, so verify the folder
-            // instead of failing outright; rethrow anything else.
-            if (stripos($e->getMessage(), 'internal server error') === false) {
-                throw $e;
-            }
-
-            return Utilities\ensureIsArray($this->getFolder($folderId->toArray(true)));
-        }
+        $response = $this->getClient()->UpdateFolder($request);
 
         if ($response instanceof FolderInfoResponseMessageType) {
             return $response->getFolders();
         }
+
         return Utilities\ensureIsArray($response);
     }
-    
+
     /**
      * Get a folder by it's distinguishedId
      *
